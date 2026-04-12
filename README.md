@@ -82,5 +82,12 @@ For simulated datasets, we follow a similar pipeline, but we first generate the 
 
 ## PHLASH
 
+Phlash is a GPU accelerated implementation algorithm for inferring population history from genomic data. We use [jthlab/phlash](https://github.com/jthlab/phlash) for running the PHLASH algorithm for simulate data.
+
+*NOTE*: We could not run PHLASH as it is on the GPU, so we changed the code to get it running on our GPU, we have provided the [phlash_exp.patch](phlash_exp.patch) for the same.
+
+### Results
 
 ## SINGER
+
+### Results
