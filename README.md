@@ -93,6 +93,42 @@ Phlash is a GPU accelerated implementation algorithm for inferring population hi
 Check out the experiments we did at [experiments/PSMC_vs_singer_Simulated.ipynb](./experiments/PSMC_vs_singer_Simulated.ipynb) (Note this contains SINGER results as well). 
 
 
+For the simulated experiments, **SINGER** is applied on the phased VCF generated from the same `msprime` simulation used for PSMC. This ensures that both methods are evaluated on identical underlying data.
+
+In the notebook, SINGER is used for comparative analysis across the three demographic models:
+- `constant`
+- `bottleneck`
+- `recent_expansion`
+
+### Pipeline
+
+To ensure scalability and stability, the simulated chromosome is divided into **5 Mb windows**. For each window:
+- `singer_master` is executed on the phased data
+- Output **nodes** and **branches** files are generated
+- These are converted into local tree sequences using a custom topology-only conversion into `tskit` format
+
+### Analysis
+
+From the reconstructed tree sequences, the following quantities are computed:
+- Mean **local TMRCA** along the genome
+- **Breakpoint density**
+- **90% posterior bands** across SINGER samples
+
+### Comparison
+
+The notebook performs direct comparisons between:
+- True ARG (from `msprime`)
+- SINGER-inferred ARG
+
+This includes:
+- Local tree visualizations
+- Small-region tree sequence panels
+- ARG comparison plots
+
+This setup enables a direct comparison of SINGER with both:
+- Ground truth simulation
+- PSMC results on the same dataset
+
 # Acknowledgements
 
 We have used AI(like Gemini, ChatGPT) for assistance in writing code and debugging PHLASH issues. However all the code and analysis have been done by us, and we have not used AI for writing any part of the report or analysis.
