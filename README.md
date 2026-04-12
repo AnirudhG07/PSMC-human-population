@@ -102,7 +102,7 @@ In the notebook, SINGER is used for comparative analysis across the three demogr
 
 ### Pipeline
 
-To ensure scalability and stability, the simulated chromosome is divided into **5 Mb windows**. For each window:
+To ensure scalability and stability, the simulated chromosome is divided into **5 Mb windows**.(similar to the experiments in the paper) For each window:
 - `singer_master` is executed on the phased data
 - Output **nodes** and **branches** files are generated
 - These are converted into local tree sequences using a custom topology-only conversion into `tskit` format
