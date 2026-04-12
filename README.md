@@ -16,7 +16,7 @@ There are two types of datasets used, one is simulated data, which is generated 
 
 ### Human Genome Data
 
-To download the real human genome data(each BAM file is minimum 15-16GB's), you can use the following command:
+To download the real human genome data(each BAM file is around 15-16GB's), you can use the following command:
 
 ```bash
 mkdir -p datasets/
