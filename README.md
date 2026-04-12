@@ -16,18 +16,18 @@ There are two types of datasets used, one is simulated data, which is generated 
 
 ### Human Genome Data
 
-To download the real human genome data, you can use the following command:
+To download the real human genome data(each BAM file is minimum 15-16GB's), you can use the following command:
 
 ```bash
 mkdir -p datasets/
 
 ## Human Genome NA12878
-curl -o datasets/NA12878.bam
+curl -o datasets/NA12878.bam ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/NA12878/alignment/NA12878.mapped.ILLUMINA.bwa.CEU.low_coverage.20121211.bam
+curl -o datasets/NA12878.bam.bai ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/NA12878/alignment/NA12878.mapped.ILLUMINA.bwa.CEU.low_coverage.20121211.bam.bai
 
 ## Human Genome NA18561
 curl -o datasets/NA18561.bam https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/data/NA18561/alignment/NA18561.mapped.ILLUMINA.bwa.CHB.low_coverage.20101123.bam
 curl -o datasets/NA18561.bam.bai https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/data/NA18561/alignment/NA18561.mapped.ILLUMINA.bwa.CHB.low_coverage.20101123.bam.bai
-curl -o datasets/NA12878.bam.bas https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/data/NA12878/alignment/NA18561.mapped.ILLUMINA.bwa.CHB.low_coverage.20101123.bam.bas
 ```
 
 ### Simulated Data
@@ -78,7 +78,7 @@ This will run the pipeline for both `NA18561` and `NA12878` samples, generating 
 
 We have generated the PSMC plots for combined plots....
 
-For simulated datasets, we follow a similar pipeline, but we first generate the simulated data using `ms` or `msprime`. Check out the experiments we did HERE.
+For simulated datasets, we follow a similar pipeline, but we first generate the simulated data using `ms` or `msprime`.
 
 ## PHLASH
 
@@ -90,4 +90,9 @@ Phlash is a GPU accelerated implementation algorithm for inferring population hi
 
 ## SINGER
 
-### Results
+Check out the experiments we did at [experiments/PSMC_vs_singer_Simulated.ipynb](./experiments/PSMC_vs_singer_Simulated.ipynb) (Note this contains SINGER results as well). 
+
+
+# Acknowledgements
+
+We have used AI(like Gemini, ChatGPT) for assistance in writing code and debugging PHLASH issues. However all the code and analysis have been done by us, and we have not used AI for writing any part of the report or analysis.
