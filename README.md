@@ -33,7 +33,7 @@ curl -o datasets/NA18561.bam.bai https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phas
 ### Simulated Data
 
 For simulated data, we use the `ms` software to generate sequences under a specified demographic model. We use python to run the simulations and generate the input files for PSMC.
-For python, we use [msprime](https://pypi.org/project/msprime/) to generate the simulated data.
+For python, we use [msprime](https://pypi.org/project/msprime/) to generate the simulated data. We run [simulate_data.py](./scripts/simulate_data.py) to generate the simulated data to get `simulated_validation.psmc` and `simulated_validation.psmcfa` file.
 
 ## Running PSMC
 
@@ -80,14 +80,6 @@ We have generated the PSMC plots for combined plots....
 
 For simulated datasets, we follow a similar pipeline, but we first generate the simulated data using `ms` or `msprime`.
 
-## PHLASH
-
-Phlash is a GPU accelerated implementation algorithm for inferring population history from genomic data. We use [jthlab/phlash](https://github.com/jthlab/phlash) for running the PHLASH algorithm for simulate data.
-
-*NOTE*: We could not run PHLASH as it is on the GPU, so we changed the code to get it running on our GPU, we have provided the [phlash_exp.patch](phlash_exp.patch) for the same.
-
-### Results
-
 ## SINGER
 
 Check out the experiments we did at [experiments/PSMC_vs_singer_Simulated.ipynb](./experiments/PSMC_vs_singer_Simulated.ipynb) (Note this contains SINGER results as well). 
@@ -128,6 +120,40 @@ This includes:
 This setup enables a direct comparison of SINGER with both:
 - Ground truth simulation
 - PSMC results on the same dataset
+
+## PHLASH
+
+Phlash is a GPU accelerated implementation algorithm for inferring population history from genomic data. We use [jthlab/phlash](https://github.com/jthlab/phlash) for running the PHLASH algorithm for simulate data.
+
+*NOTE*: We could not run PHLASH as it is on the GPU, so we changed the code to get it running on our GPU, we have provided the [phlash_gpu.patch](./phlash_gpu.patch) for the same.
+
+We run our PHLASH script on the simulated data generated as mentioned above using [run_phlash.py](./scripts/run_phlash.py).
+
+To run the PHLASH from scratch, you can follow the instructions below:
+
+1. Setup Phlash:
+```bash
+git clone https://github.com/jthlab/phlash.git
+cd phlash
+uv sync # to install dependencies
+```
+
+2. Try to run the PHLASH on the simulated data:
+
+```bash
+source .venv/bin/activate # source the virtual environment
+python3 run_phlash.py simulated_validation.psmc simulated_validation.psmcfa
+```
+
+If this works, great! Else try our patch for GPU support:
+
+```bash
+git apply ../phlash_gpu.patch
+export JAX_PLATFORM=cpu
+python3 run_phlash.py simulated_validation.psmc simulated_validation.psmcfa
+```
+
+This worked for us, and we were able to get the PHLASH results for the simulated data, running on our GPU's.
 
 # Acknowledgements
 
