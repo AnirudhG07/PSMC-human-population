@@ -1,30 +1,4 @@
 #!/usr/bin/env python3
-__about__ = """
-PSMC Simulated data
-- Variable demography
-- Proper SNP → sequence mapping
-- 100 bp binning (PSMC style)
-- Unique output per run (seed-based tag)
-"""
-
-import msprime
-import numpy as np
-import subprocess
-import os
-from pathlib import Path
-import random
-
-ROOT_DIR = Path(__file__).parent.parent
-DATASETS_DIR = ROOT_DIR / "datasets"
-
-PSMC_BIN = ROOT_DIR / "psmc" / "psmc"
-
-SEQ_LENGTH = int(2e7) 
-RECOMB_RATE = 1e-8
-MUT_RATE = 2e-7
-BIN_SIZE = 100
-
-
 import msprime
 import numpy as np
 import subprocess
@@ -38,14 +12,14 @@ DATASETS_DIR = ROOT_DIR / "datasets"
 
 PSMC_BIN = ROOT_DIR / "psmc" / "psmc"
 
-# Simulation parameters
-NUM_SEGMENTS = 10
+# Simulation parameters: Increased segments for better deep-time signal
+NUM_SEGMENTS = 20
 SEGMENT_LENGTH = int(5e6) 
 RECOMB_RATE = 1e-8
 MUT_RATE = 2e-7
 BIN_SIZE = 100
 
-# Demography: Out-of-Africa style bottleneck
+# Demography: Bottleneck and ancient structure
 def build_demography():
     demography = msprime.Demography()
     demography.add_population(name="pop", initial_size=10000)
@@ -66,7 +40,8 @@ def save_truth(demography, filename):
         {"time": 0, "Ne": 10000},
         {"time": 10000, "Ne": 1200},
         {"time": 25000, "Ne": 12000},
-        {"time": 100000, "Ne": 8000}
+        {"time": 100000, "Ne": 8000},
+        {"time": 1000000, "Ne": 8000}
     ]
     with open(filename, 'w') as f:
         json.dump(history, f)
@@ -118,11 +93,9 @@ def main():
     ts_to_psmcfa(ts_list, psmcfa_file)
 
     print("[Step 3] Running PSMC...")
-    subprocess.run([str(PSMC_BIN), "-N25", "-t15", "-r5", "-p", "4+25*2+4+6", "-o", str(psmc_file), str(psmcfa_file)])
+    # -t30 for deep reach, -p "2+28*2+6" for high recent resolution
+    subprocess.run([str(PSMC_BIN), "-N25", "-t30", "-r5", "-p", "2+28*2+6", "-o", str(psmc_file), str(psmcfa_file)])
     print(f"  ✓ Done. Files: {psmc_file.name}, {truth_file.name}")
-
-if __name__ == "__main__":
-    main()
 
 if __name__ == "__main__":
     main()

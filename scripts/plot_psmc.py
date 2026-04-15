@@ -7,7 +7,7 @@ Features:
 - Supports multiple input files (overlaid)
 - Optional iteration gradient (-it flag)
 - Smoothing for noisy small datasets
-- Ground Truth comparison
+- Ground Truth comparison (clipped to PSMC range)
 """
 
 import matplotlib.pyplot as plt
@@ -17,8 +17,10 @@ from pathlib import Path
 import os
 import json
 
+# ==================================================
 # Truth Plotter
-def plot_truth(ax, truth_file):
+# ==================================================
+def plot_truth(ax, truth_file, max_time):
     if not os.path.exists(truth_file):
         print(f"⚠️ Truth file {truth_file} not found")
         return
@@ -29,15 +31,26 @@ def plot_truth(ax, truth_file):
     times = [h["time"] for h in history]
     nes = [h["Ne"] for h in history]
     
-    # Extend for visualization
-    times.append(times[-1] * 5)
-    nes.append(nes[-1])
-    
-    ax.step(times, nes, color="black", linestyle="--", linewidth=1.5, 
+    # Filter to match PSMC reach
+    filtered_times = []
+    filtered_nes = []
+    for t, n in zip(times, nes):
+        if t <= max_time:
+            filtered_times.append(t)
+            filtered_nes.append(n)
+        else:
+            # Add one last point at the boundary
+            filtered_times.append(max_time)
+            filtered_nes.append(n)
+            break
+            
+    ax.step(filtered_times, filtered_nes, color="black", linestyle="--", linewidth=1.5, 
             label="Ground Truth", where='post', alpha=0.7)
 
 
+# ==================================================
 # Parse PSMC
+# ==================================================
 def parse_psmc_iterations(filename):
     iterations = []
     current_t, current_l = [], []
@@ -69,18 +82,22 @@ def parse_psmc_iterations(filename):
     return iterations
 
 
+# ==================================================
 # Smoothing (important for small Mb data)
+# ==================================================
 def smooth(y, window=5):
     if len(y) < window:
         return y
     return np.convolve(y, np.ones(window)/window, mode='same')
 
 
+# ==================================================
 # Plotting
+# ==================================================
 def plot_sample(ax, iterations, label, color, show_iterations=False, no_smooth=False, mu=2e-7, s=100):
 
     if not iterations:
-        return
+        return None
 
     def process_it(it):
         t, l, theta_0 = it
@@ -97,11 +114,14 @@ def plot_sample(ax, iterations, label, color, show_iterations=False, no_smooth=F
             Ne = smooth(Ne)
         return T, Ne
 
+    max_t_inferred = 0
+
     if not show_iterations:
         # Only final iteration
         T, Ne = process_it(iterations[-1])
         if T is not None:
             ax.step(T, Ne, color=color, linewidth=2.5, label=f"{label} (PSMC)", where='post')
+            max_t_inferred = T[-1]
     else:
         # Plot all iterations with gradient
         n = len(iterations)
@@ -122,8 +142,15 @@ def plot_sample(ax, iterations, label, color, show_iterations=False, no_smooth=F
                 label=f"{label} (Final)" if i == n - 1 else "",
                 where='post'
             )
+            if i == n - 1:
+                max_t_inferred = T[-1]
+    
+    return max_t_inferred
 
 
+# ==================================================
+# Main
+# ==================================================
 def main():
     parser = argparse.ArgumentParser(description="PSMC Plotter (fixed scaling)")
     parser.add_argument("psmc_files", nargs="+", help="PSMC output files")
@@ -136,15 +163,15 @@ def main():
     parser.add_argument("--truth", help="JSON file containing true demography")
     args = parser.parse_args()
 
+    # ==================================================
     # Plot
+    # ==================================================
     fig, ax = plt.subplots(figsize=(10, 7))
 
-    # Plot Truth first so it's in background
-    if args.truth:
-        plot_truth(ax, args.truth)
-
     colors = plt.cm.tab10.colors
+    overall_max_t = 0
 
+    # First pass: Plot samples and find max inferred time
     for i, f in enumerate(args.psmc_files):
         iterations = parse_psmc_iterations(f)
 
@@ -155,7 +182,7 @@ def main():
         label = Path(f).stem
         color = colors[i % len(colors)]
 
-        plot_sample(
+        m_t = plot_sample(
             ax,
             iterations,
             label,
@@ -164,6 +191,12 @@ def main():
             no_smooth=args.no_smooth,
             mu=args.mu
         )
+        if m_t:
+            overall_max_t = max(overall_max_t, m_t)
+
+    # Second pass: Plot Truth clipped to max inferred time
+    if args.truth and overall_max_t > 0:
+        plot_truth(ax, args.truth, overall_max_t)
 
     # ==================================================
     # Axes
@@ -180,7 +213,8 @@ def main():
 
     # Auto-adjust limits
     ax.set_ylim(bottom=1e2)
-    ax.set_xlim(left=1e3, right=2e6)
+    # Set x-limits based on data
+    ax.set_xlim(left=1e3, right=overall_max_t * 1.1 if overall_max_t > 0 else 1e6)
 
     ax.legend(frameon=True, facecolor='white', framealpha=0.9)
 
