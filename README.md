@@ -39,7 +39,11 @@ curl -o datasets/hs37d5.fa.gz LINK???????
 ### Simulated Data
 
 For simulated data, we use the `ms` software to generate sequences under a specified demographic model. We use python to run the simulations and generate the input files for PSMC.
-For python, we use [msprime](https://pypi.org/project/msprime/) to generate the simulated data. We run [simulate_data.py](./scripts/simulate_data.py) to generate the simulated data to get `simulated_validation.psmc` and `simulated_validation.psmcfa` file.
+For python, we use [msprime](https://pypi.org/project/msprime/) to generate the random simulated data for every run(using a random seed) but they have similar demographic features. We run [simulate_data.py](./scripts/simulate_data.py) to generate the simulated data to get `sim_data_<RANDOM_SEED>.psmc` and `sim_data_<RANDOM_SEED>.psmcfa` file.
+
+```bash
+python3 scripts/simulate_data.py
+```
 
 ## Running PSMC
 
@@ -71,6 +75,8 @@ Once we have the PSMC software built, we can run it on our data. Our main pipeli
 4. Runs PSMC with the standard parameters `-N25 -t15 -r5 -p '4+25*2+4+6'` to produce a `.psmc` output file.
 5. Creates a comparison plot for any available `.psmc` files and saves it as `datasets/psmc_plot.png`.
 
+*Note:* For simulated datasets, we follow a similar pipeline, but we first generate the simulated data using `ms` or `msprime`.
+
 You can run the pipeline for all supported samples or pass specific sample names, for example: (Note we use [uv](https://astral.sh/uv/) to run the python script, you can also use `python` or `python3` if you have the necessary dependencies installed)
 
 ```bash
@@ -82,13 +88,24 @@ This will run the pipeline for both `NA18561` and `NA12878` samples, generating 
 
 ### Results
 
-We have generated the PSMC plots for combined plots....
+To validate the simulated data, we run PSMC on the simulated data.
 
-For simulated datasets, we follow a similar pipeline, but we first generate the simulated data using `ms` or `msprime`.
+1. *Learning of EM algorithm in PSMC*: We observe that as the number of iterations increases, the PSMC estimates converges. This shows that the EM algorithm is effectively learning the demographic history from the data and converging towards a stable solution.
+
+![Learning of EM algorithm in PSMC](experiments/PSMC-Learning-Progress.png)
+
+2. *Comparison of PSMC with Ground Truth*: We compare the PSMC estimates with the true demographic history used in the simulation. The plot shows that PSMC gets closer and closer to ground truth as the number of iterations increases.
+
+![PSMC vs Ground Truth](./experiments/psmc_simulated_data.png)
+
+3. *Human Genome Results*: We also run PSMC on the real human genome data as mentioned above, an example plot among the obtained plots is shown below(for NA12878):
+
+![PSMC on NA12878](./experiments/NA12878-psmc.png)
 
 ## SINGER
 
 Check out the experiments we did at [experiments/PSMC_vs_singer_Simulated.ipynb](./experiments/PSMC_vs_singer_Simulated.ipynb) (Note this contains SINGER results as well). 
+
 ![SINGER vs PSMC](experiments/SINGER_vs_PSMC.png)
 ![SINGER_TMRCA on simulated data](experiments/SINGER_TMRCA.png)
 ![SINGER HEATMAP](experiments/Heatmap.png)
