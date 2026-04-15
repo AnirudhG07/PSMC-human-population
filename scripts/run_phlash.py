@@ -1,45 +1,26 @@
 #!/usr/bin/env python3
 """
-Run Phlash analysis: Takes PSMCFA file and compares with PSMC results
+Run Phlash analysis from a PSMCFA file and export results.
 """
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import os
-
-def parse_psmc(filename):
-    """Parse PSMC output file"""
-    times, lambdas = [], []
-    in_final_rd = False
-    with open(filename) as f:
-        for line in f:
-            if line.startswith('RD'):
-                in_final_rd = True
-            elif line.startswith('RS') and in_final_rd:
-                parts = line.split()
-                times.append(float(parts[2]))
-                lambdas.append(float(parts[3]))
-    return np.array(times), np.array(lambdas)
+import pickle
 
 def main():
     # ==================================================
     # Parse arguments
     # ==================================================
     if len(sys.argv) < 2:
-        print("\nUsage: python run_phlash.py <psmcfa_file> [psmc_file]")
-        print("\nExample: python run_phlash.py simulated_validation.psmcfa simulated_validation.psmc")
-        print("\nIf psmc_file is not provided, comparison plot will be skipped.\n")
+        print("\nUsage: python run_phlash.py <psmcfa_file>")
+        print("\nExample: python run_phlash.py simulated_validation.psmcfa\n")
         return
     
     psmcfa_file = sys.argv[1]
-    psmc_file = sys.argv[2] if len(sys.argv) > 2 else None
     
     if not os.path.exists(psmcfa_file):
         print(f"✗ Error: PSMCFA file not found: {psmcfa_file}")
-        return
-    
-    if psmc_file and not os.path.exists(psmc_file):
-        print(f"✗ Error: PSMC file not found: {psmc_file}")
         return
 
     print("\n" + "="*70)
@@ -47,20 +28,9 @@ def main():
     print("="*70)
     
     # ==================================================
-    # Parse PSMC results (if provided)
-    # ==================================================
-    psmc_times = None
-    psmc_lambdas = None
-    
-    if psmc_file:
-        print(f"\n[Step 1] Parsing PSMC results from {psmc_file}...")
-        psmc_times, psmc_lambdas = parse_psmc(psmc_file)
-        print(f"  ✓ Extracted {len(psmc_times)} time points from PSMC")
-    
-    # ==================================================
     # Run Phlash
     # ==================================================
-    print(f"\n[Step 2] Running Phlash on {psmcfa_file}...")
+    print(f"\n[Step 1] Running Phlash on {psmcfa_file}...")
     
     phlash_success = False
     phlash_times = None
@@ -106,49 +76,46 @@ def main():
         return
     
     # ==================================================
-    # Visualization
+    # Visualization (PSMC-like style)
     # ==================================================
-    print("\n[Step 3] Creating visualization...")
-    
-    if psmc_file and psmc_times is not None:
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
-    else:
-        fig, ax2 = plt.subplots(1, 1, figsize=(10, 6))
-        ax1 = None
-    
-    # Plot 1: PSMC (if available)
-    if ax1 is not None:
-        ax1.plot(psmc_times, psmc_lambdas, 'o-', linewidth=2, markersize=5,
-                 color='blue', label='PSMC', alpha=0.8)
-        ax1.set_xscale('log')
-        ax1.set_yscale('log')
-        ax1.set_xlabel('Scaled time (2N₀ generations)', fontsize=11)
-        ax1.set_ylabel('Scaled population size (λ)', fontsize=11)
-        ax1.set_title('PSMC Results', fontsize=12, fontweight='bold')
-        ax1.grid(True, alpha=0.3, which='both')
-        ax1.legend(fontsize=10)
-        from matplotlib.ticker import ScalarFormatter
-        ax1.yaxis.set_major_formatter(ScalarFormatter())
-        ax1.ticklabel_format(style='scientific', axis='y', scilimits=(0,0))
-    
-    # Plot 2: Phlash
-    ax2.plot(phlash_times, phlash_median_ne, linewidth=2.5,
-             label='Phlash median', color='green')
-    ax2.fill_between(phlash_times, phlash_lower, phlash_upper,
-                     alpha=0.2, color='green', label='95% CI')
-    ax2.set_xscale('log')
-    ax2.set_yscale('log')
-    ax2.set_xlabel('Time (generations ago)', fontsize=11)
-    ax2.set_ylabel('N_e', fontsize=11)
-    ax2.set_title('Phlash Results (Bayesian)', fontsize=12, fontweight='bold')
-    ax2.grid(True, alpha=0.3, which='both')
-    ax2.legend(fontsize=10)
+    print("\n[Step 2] Creating visualization...")
+
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+
+    # psmc_plot.pl uses log-x and linear-y with step lines.
+    ax.step(phlash_times, phlash_median_ne / 10000.0, where='post', linewidth=2.2,
+            label='Phlash median', color='red')
+    ax.fill_between(phlash_times, phlash_lower / 10000.0, phlash_upper / 10000.0,
+                    alpha=0.2, color='red', label='95% CI', step='post')
+    ax.set_xscale('log')
+    ax.set_xlabel('Time (generations ago)', fontsize=11)
+    ax.set_ylabel('Effective population size (x10^4)', fontsize=11)
+    ax.set_title('Phlash Demographic History', fontsize=12, fontweight='bold')
+    ax.grid(True, alpha=0.3, which='both')
+    ax.legend(fontsize=10, loc='upper right')
     
     plt.tight_layout()
     
     output_file = 'phlash_analysis.png'
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     print(f"  ✓ Saved: {output_file}")
+
+    # ==================================================
+    # Save execution outputs as pickle
+    # ==================================================
+    pickle_file = 'phlash_output.pkl'
+    output_payload = {
+        'input_psmcfa_file': psmcfa_file,
+        'mutation_rate': mutation_rate,
+        'n_posterior_samples': len(posterior_samples),
+        'times_generations': phlash_times,
+        'median_ne': phlash_median_ne,
+        'lower_95_ne': phlash_lower,
+        'upper_95_ne': phlash_upper,
+    }
+    with open(pickle_file, 'wb') as f:
+        pickle.dump(output_payload, f)
+    print(f"  ✓ Saved: {pickle_file}")
     
     # ==================================================
     # Summary
@@ -157,14 +124,13 @@ def main():
     print("PHLASH ANALYSIS COMPLETE")
     print("="*70)
     print("\nResults:")
-    if psmc_times is not None:
-        print(f"  • PSMC: {len(psmc_times)} time points")
     if phlash_success:
         print(f"  • Phlash: {len(posterior_samples)} posterior samples")
         print(f"  • Phlash Ne range: {phlash_median_ne.min():.0f} - {phlash_median_ne.max():.0f}")
     
     print("\nGenerated files:")
     print(f"  • {output_file}")
+    print(f"  • {pickle_file}")
     print("\n" + "="*70)
 
 if __name__ == '__main__':

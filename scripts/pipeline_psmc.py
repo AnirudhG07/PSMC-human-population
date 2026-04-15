@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
+For Human Genome Data
+
 Optimized PSMC pipeline for demographic analysis.
 Supports running specific samples via command line arguments.
-Example: uv run scripts/pipeline.py NA18561 NA12878
+Example: uv run scripts/pipeline_psmc.py NA18561.bam NA12878.bam
 """
 
 import os
