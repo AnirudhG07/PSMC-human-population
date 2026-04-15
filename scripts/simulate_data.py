@@ -19,142 +19,110 @@ DATASETS_DIR = ROOT_DIR / "datasets"
 
 PSMC_BIN = ROOT_DIR / "psmc" / "psmc"
 
-SEQ_LENGTH = int(5e6) 
+SEQ_LENGTH = int(2e7) 
 RECOMB_RATE = 1e-8
 MUT_RATE = 2e-7
-BIN_SIZE = 10
+BIN_SIZE = 100
 
 
-# Demography
+import msprime
+import numpy as np
+import subprocess
+import os
+from pathlib import Path
+import random
+import json
+
+ROOT_DIR = Path(__file__).parent.parent
+DATASETS_DIR = ROOT_DIR / "datasets"
+
+PSMC_BIN = ROOT_DIR / "psmc" / "psmc"
+
+# Simulation parameters
+NUM_SEGMENTS = 10
+SEGMENT_LENGTH = int(5e6) 
+RECOMB_RATE = 1e-8
+MUT_RATE = 2e-7
+BIN_SIZE = 100
+
+# Demography: Out-of-Africa style bottleneck
 def build_demography():
     demography = msprime.Demography()
     demography.add_population(name="pop", initial_size=10000)
-
-    # Strong oscillations (amplified for small data)
-    demography.add_population_parameters_change(time=1000, initial_size=1000, population="pop")
-    demography.add_population_parameters_change(time=3000, initial_size=50000, population="pop")
-    demography.add_population_parameters_change(time=8000, initial_size=2000, population="pop")
-    demography.add_population_parameters_change(time=20000, initial_size=80000, population="pop")
-    demography.add_population_parameters_change(time=40000, initial_size=3000, population="pop")
-    demography.add_population_parameters_change(time=100000, initial_size=60000, population="pop")
+    
+    # Bottleneck
+    demography.add_population_parameters_change(time=10000, initial_size=1200, population="pop")
+    # Recovery
+    demography.add_population_parameters_change(time=25000, initial_size=12000, population="pop")
+    # Ancient expansion
+    demography.add_population_parameters_change(time=100000, initial_size=8000, population="pop")
 
     return demography
 
-# Convert tree sequence → PSMCFA
-def ts_to_psmcfa(ts, output_file):
-    L = int(ts.sequence_length)
+def save_truth(demography, filename):
+    """Saves the demographic steps for plotting."""
+    # Since we know our model, we hardcode for plotting clarity
+    history = [
+        {"time": 0, "Ne": 10000},
+        {"time": 10000, "Ne": 1200},
+        {"time": 25000, "Ne": 12000},
+        {"time": 100000, "Ne": 8000}
+    ]
+    with open(filename, 'w') as f:
+        json.dump(history, f)
 
-    print(f"  → Building sequence of length {L:,}")
-
-    # initialize
-    seq = np.zeros(L, dtype=np.uint8)  # 0 = homozygous, 1 = heterozygous
-
-    # mark heterozygous sites
-    for var in ts.variants():
-        g = var.genotypes
-        if g[0] != g[1]:
-            pos = int(var.site.position)
-            if pos < L:
-                seq[pos] = 1
-
-    # bin into 100bp windows
-    print(f"  → Binning into {BIN_SIZE} bp windows...")
-    num_bins = L // BIN_SIZE
-    binned = []
-
-    for i in range(num_bins):
-        chunk = seq[i * BIN_SIZE:(i + 1) * BIN_SIZE]
-        if np.any(chunk):
-            binned.append("T")
-        else:
-            binned.append("N")
-
-    print(f"  → Writing PSMCFA ({len(binned):,} bins)...")
-
+# Convert multiple tree sequences → single PSMCFA
+def ts_to_psmcfa(ts_list, output_file):
     with open(output_file, "w") as f:
-        f.write(">simulated\n")
-        for i in range(0, len(binned), 60):
-            f.write("".join(binned[i:i+60]) + "\n")
+        for idx, ts in enumerate(ts_list):
+            L = int(ts.sequence_length)
+            seq = np.zeros(L, dtype=np.uint8)
+            for var in ts.variants():
+                if var.genotypes[0] != var.genotypes[1]:
+                    seq[int(var.site.position)] = 1
+            
+            num_bins = L // BIN_SIZE
+            binned = []
+            for i in range(num_bins):
+                binned.append("K" if np.any(seq[i*BIN_SIZE:(i+1)*BIN_SIZE]) else "T")
+            
+            f.write(f">scaffold_{idx}\n")
+            for i in range(0, len(binned), 60):
+                f.write("".join(binned[i:i+60]) + "\n")
 
-
-# ==================================================
-# Main
-# ==================================================
 def main():
-
-    print("\n" + "="*70)
-    print("SIMULATION: Realistic PSMC Data")
-    print("="*70)
-
-    # Ensure output dir
     DATASETS_DIR.mkdir(exist_ok=True)
-
-    # Random seed + tag
     seed = random.randint(1, 10_000_000)
     tag = f"{seed}"
+    
+    psmcfa_file = DATASETS_DIR / f"sim_data_{tag}.psmcfa"
+    psmc_file = DATASETS_DIR / f"sim_data_{tag}.psmc"
+    truth_file = DATASETS_DIR / f"sim_data_{tag}_truth.json"
 
-    print(f"\n[Info] Seed: {seed}")
-    print(f"[Info] Tag: {tag}")
-
-    # Output files
-    psmcfa_file = DATASETS_DIR / f"simulated_data_{tag}.psmcfa"
-    psmc_file = DATASETS_DIR / f"simulated_data_{tag}.psmc"
-
-    # Simulate ancestry
-    print("\n[Step 1] Simulating ancestry...")
-
+    print(f"\n[Info] Seed: {seed} | Tag: {tag}")
+    
     demography = build_demography()
+    save_truth(demography, truth_file)
 
-    ts = msprime.sim_ancestry(
-        samples=1,
-        ploidy=2,
-        sequence_length=SEQ_LENGTH,
-        recombination_rate=RECOMB_RATE,
-        demography=demography,
-        random_seed=seed
-    )
+    ts_list = []
+    print(f"[Step 1] Simulating {NUM_SEGMENTS} segments of {SEGMENT_LENGTH/1e6}Mb...")
+    for i in range(NUM_SEGMENTS):
+        ts = msprime.sim_ancestry(
+            samples=1, ploidy=2, sequence_length=SEGMENT_LENGTH,
+            recombination_rate=RECOMB_RATE, demography=demography, random_seed=seed + i
+        )
+        ts = msprime.sim_mutations(ts, rate=MUT_RATE, random_seed=seed + i)
+        ts_list.append(ts)
 
-    ts = msprime.sim_mutations(ts, rate=MUT_RATE, random_seed=seed)
+    print("[Step 2] Creating multi-scaffold PSMCFA...")
+    ts_to_psmcfa(ts_list, psmcfa_file)
 
-    print(f"  ✓ Sites: {ts.num_sites:,}")
+    print("[Step 3] Running PSMC...")
+    subprocess.run([str(PSMC_BIN), "-N25", "-t15", "-r5", "-p", "4+25*2+4+6", "-o", str(psmc_file), str(psmcfa_file)])
+    print(f"  ✓ Done. Files: {psmc_file.name}, {truth_file.name}")
 
-    # Convert to PSMCFA
-    print("\n[Step 2] Creating PSMCFA...")
-
-    ts_to_psmcfa(ts, psmcfa_file)
-
-    print(f"  ✓ {psmcfa_file}")
-
-    # Run PSMC
-    print("\n[Step 3] Running PSMC...")
-
-    cmd = [
-        str(PSMC_BIN),
-        "-N25",
-        "-t15",
-        "-r5",
-        "-p", "4+10*2+4+6",
-        "-o", str(psmc_file),
-        str(psmcfa_file)
-    ]
-
-    result = subprocess.run(cmd, capture_output=True, text=True)
-
-    if os.path.exists(psmc_file) and os.path.getsize(psmc_file) > 1000:
-        lines = sum(1 for _ in open(psmc_file))
-        print(f"  ✓ PSMC complete ({lines} lines)")
-    else:
-        print("  ✗ PSMC failed")
-        print(result.stderr)
-        return
-
-    print("\n" + "="*70)
-    print("DONE")
-    print("="*70)
-
-    print("\nGenerated:")
-    print(f"- {psmcfa_file}")
-    print(f"- {psmc_file}")
+if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()

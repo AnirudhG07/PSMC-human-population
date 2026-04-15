@@ -7,6 +7,7 @@ Features:
 - Supports multiple input files (overlaid)
 - Optional iteration gradient (-it flag)
 - Smoothing for noisy small datasets
+- Ground Truth comparison
 """
 
 import matplotlib.pyplot as plt
@@ -14,20 +15,42 @@ import numpy as np
 import argparse
 from pathlib import Path
 import os
+import json
 
-# ==================================================
+# Truth Plotter
+def plot_truth(ax, truth_file):
+    if not os.path.exists(truth_file):
+        print(f"⚠️ Truth file {truth_file} not found")
+        return
+
+    with open(truth_file) as f:
+        history = json.load(f)
+    
+    times = [h["time"] for h in history]
+    nes = [h["Ne"] for h in history]
+    
+    # Extend for visualization
+    times.append(times[-1] * 5)
+    nes.append(nes[-1])
+    
+    ax.step(times, nes, color="black", linestyle="--", linewidth=1.5, 
+            label="Ground Truth", where='post', alpha=0.7)
+
+
 # Parse PSMC
-# ==================================================
 def parse_psmc_iterations(filename):
     iterations = []
     current_t, current_l = [], []
     in_rd = False
+    theta_0 = None
 
     with open(filename) as f:
         for line in f:
-            if line.startswith('RD'):
+            if line.startswith('TR'):
+                theta_0 = float(line.split()[1])
+            elif line.startswith('RD'):
                 if current_t:
-                    iterations.append((np.array(current_t), np.array(current_l)))
+                    iterations.append((np.array(current_t), np.array(current_l), theta_0))
                 current_t, current_l = [], []
                 in_rd = True
 
@@ -41,73 +64,66 @@ def parse_psmc_iterations(filename):
                     current_l.append(l)
 
         if current_t:
-            iterations.append((np.array(current_t), np.array(current_l)))
+            iterations.append((np.array(current_t), np.array(current_l), theta_0))
 
     return iterations
 
 
-# ==================================================
 # Smoothing (important for small Mb data)
-# ==================================================
 def smooth(y, window=5):
     if len(y) < window:
         return y
     return np.convolve(y, np.ones(window)/window, mode='same')
 
 
-# ==================================================
 # Plotting
-# ==================================================
-def plot_sample(ax, iterations, label, color, show_iterations=False, mu=1.25e-8):
+def plot_sample(ax, iterations, label, color, show_iterations=False, no_smooth=False, mu=2e-7, s=100):
 
     if not iterations:
         return
 
-    if not show_iterations:
-        # Only final iteration
-        t, l = iterations[-1]
-
+    def process_it(it):
+        t, l, theta_0 = it
         mask = (t > 0) & (l > 0)
         t, l = t[mask], l[mask]
-
         if len(t) == 0:
-            return
+            return None, None
+        
+        N_0 = theta_0 / (4 * mu * s)
+        Ne = l * N_0
+        T = 2 * N_0 * t
+        
+        if not no_smooth:
+            Ne = smooth(Ne)
+        return T, Ne
 
-        Ne = l / (2 * mu)
-        Ne = smooth(Ne)
-
-        ax.plot(t, Ne, color=color, linewidth=2.5, label=label)
-
+    if not show_iterations:
+        # Only final iteration
+        T, Ne = process_it(iterations[-1])
+        if T is not None:
+            ax.step(T, Ne, color=color, linewidth=2.5, label=f"{label} (PSMC)", where='post')
     else:
         # Plot all iterations with gradient
         n = len(iterations)
-
-        for i, (t, l) in enumerate(iterations):
-            mask = (t > 0) & (l > 0)
-            t, l = t[mask], l[mask]
-
-            if len(t) == 0:
+        for i, it in enumerate(iterations):
+            T, Ne = process_it(it)
+            if T is None:
                 continue
 
-            Ne = l / (2 * mu)
-            Ne = smooth(Ne)
-
-            alpha = 0.1 + 0.9 * (i + 1) / n
+            alpha = min(1.0, 0.1 + 0.9 * (i + 1) / n)
             lw = 0.5 + 2.0 * (i + 1) / n
 
-            ax.plot(
-                t,
+            ax.step(
+                T,
                 Ne,
                 color=color,
                 alpha=alpha,
                 linewidth=lw,
-                label=label if i == n - 1 else ""
+                label=f"{label} (Final)" if i == n - 1 else "",
+                where='post'
             )
 
 
-# ==================================================
-# Main
-# ==================================================
 def main():
     parser = argparse.ArgumentParser(description="PSMC Plotter (fixed scaling)")
     parser.add_argument("psmc_files", nargs="+", help="PSMC output files")
@@ -116,17 +132,16 @@ def main():
                         help="Show all iterations with gradient")
     parser.add_argument("--no-smooth", action="store_true",
                         help="Disable smoothing")
+    parser.add_argument("--mu", type=float, default=2e-7, help="Mutation rate")
+    parser.add_argument("--truth", help="JSON file containing true demography")
     args = parser.parse_args()
 
-    # Override smoothing if disabled
-    global smooth
-    if args.no_smooth:
-        smooth = lambda x: x
-
-    # ==================================================
     # Plot
-    # ==================================================
     fig, ax = plt.subplots(figsize=(10, 7))
+
+    # Plot Truth first so it's in background
+    if args.truth:
+        plot_truth(ax, args.truth)
 
     colors = plt.cm.tab10.colors
 
@@ -145,7 +160,9 @@ def main():
             iterations,
             label,
             color,
-            show_iterations=args.iterations
+            show_iterations=args.iterations,
+            no_smooth=args.no_smooth,
+            mu=args.mu
         )
 
     # ==================================================
@@ -154,16 +171,18 @@ def main():
     ax.set_xscale('log')
     ax.set_yscale('log')
 
-    ax.set_xlabel('Time (coalescent units)')
+    ax.set_xlabel('Time (generations)')
     ax.set_ylabel('Effective population size (Ne)')
 
-    ax.set_title('PSMC Demographic Inference')
+    ax.set_title('PSMC Demographic Inference vs Ground Truth')
 
     ax.grid(True, which='both', alpha=0.3)
 
+    # Auto-adjust limits
     ax.set_ylim(bottom=1e2)
+    ax.set_xlim(left=1e3, right=2e6)
 
-    ax.legend()
+    ax.legend(frameon=True, facecolor='white', framealpha=0.9)
 
     plt.tight_layout()
     plt.savefig(args.out, dpi=300)
