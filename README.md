@@ -89,7 +89,9 @@ For simulated datasets, we follow a similar pipeline, but we first generate the 
 ## SINGER
 
 Check out the experiments we did at [experiments/PSMC_vs_singer_Simulated.ipynb](./experiments/PSMC_vs_singer_Simulated.ipynb) (Note this contains SINGER results as well). 
-
+![SINGER vs PSMC](experiments/SINGER_vs_PSMC.png)
+![SINGER_TMRCA on simulated data](experiments/SINGER_TMRCA.png)
+![SINGER HEATMAP](experiments/SINGER_Heatmap.png)
 
 For the simulated experiments, **SINGER** is applied on the phased VCF generated from the same `msprime` simulation used for PSMC. This ensures that both methods are evaluated on identical underlying data.
 
