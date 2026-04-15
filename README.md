@@ -30,6 +30,12 @@ curl -o datasets/NA18561.bam https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/d
 curl -o datasets/NA18561.bam.bai https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/data/NA18561/alignment/NA18561.mapped.ILLUMINA.bwa.CHB.low_coverage.20101123.bam.bai
 ```
 
+You also need to download a reference genome for the human genome data.
+
+```bash
+curl -o datasets/hs37d5.fa.gz LINK???????
+```
+
 ### Simulated Data
 
 For simulated data, we use the `ms` software to generate sequences under a specified demographic model. We use python to run the simulations and generate the input files for PSMC.
@@ -57,7 +63,7 @@ cd ..
 
 ### Pipeline for PSMC
 
-Once we have the PSMC software built, we can run it on our data. Our main pipeline for running PSMC on the human genome data is [pipeline.py](scripts/pipeline.py). It processes the supported samples (`NA12878` and `NA18561`) and does the following:
+Once we have the PSMC software built, we can run it on our data. Our main pipeline for running PSMC on the human genome data is [pipeline.py](scripts/pipeline_psmc.py). It processes the supported samples (`NA12878` and `NA18561`) and does the following:
 
 1. Checks whether a BAM index exists for each sample and creates it with `samtools index -@ 4` if needed.
 2. Converts each BAM file into a gzipped FASTQ-like file using `bcftools mpileup`, `bcftools call`, and `vcfutils.pl vcf2fq`.
@@ -69,7 +75,7 @@ You can run the pipeline for all supported samples or pass specific sample names
 
 ```bash
 uv sync # to install dependencies
-uv run scripts/pipeline.py NA18561 NA12878
+uv run scripts/pipeline_psmc.py NA18561.bam NA12878.bam
 ```
 
 This will run the pipeline for both `NA18561` and `NA12878` samples, generating the necessary files and the comparison plot.
