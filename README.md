@@ -6,6 +6,8 @@ This repository contains the experiments done to replicate the results of the [P
 
 *Course*: Big Data Biology, DS202
 *Contributor*: Anirudh Gupta, Savyasachi Deval
+*GitHub (Savyascahi)*: https://github.com/SavyasachiD
+
 
 ## Datasets
 
