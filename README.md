@@ -198,7 +198,7 @@ The 95% Credible Interval (CI) represents the range in which 95% of the posterio
 
 | PHLASH Full Range | PHLASH Zoomed |
 |:---:|:---:|
-| ![PHLASH Full Range](./experiments/phlash_analysis_full.png) | ![PHLASH Zoomed](./experiments/phlash_analysis_zoomed.png) |
+| ![PHLASH Full Range](./experiments/phlash_analysis_complete.png) | ![PHLASH Zoomed](./experiments/phlash_analysis_zoomed.png) |
 
 ### Comparison of PHLASH and Ground Truth
 We also validated the Phlash results against the known ground truth from our simulation. After correcting for scaling (ensuring the window size of 100bp was properly accounted for during rescaling), we see that Phlash successfully captures the bottleneck and recovery events.
