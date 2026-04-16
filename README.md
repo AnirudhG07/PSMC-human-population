@@ -173,12 +173,15 @@ python3 run_phlash.py simulated_validation.psmc simulated_validation.psmcfa
 If this works, great! Else try our patch for GPU support:
 
 ```bash
-git apply ../phlash_gpu.patch
-export JAX_PLATFORM=cpu
-python3 scripts/run_phlash.py sim_data_<RANDOM_SEED>.psmcfa
-```
+# Apply the GPU patch
+git am phlash_gpu.patch
 
-This worked for us, and we were able to get the PHLASH results for the simulated data, running on our GPU's.
+# Generate both full and zoomed plots
+python3 scripts/plot_phlash.py --pkl phlash_output.pkl
+
+# Compare with ground truth
+python3 scripts/plot_phlash.py --pkl phlash_output.pkl --truth datasets/sim_data_<SEED>_truth.json
+```
 
 ## Results
 
@@ -193,7 +196,9 @@ We used NVIDIA GeForce RTX 3050 GPU and ran PHLASH on the simulated data to obta
 **What does the 95% CI mean in Phlash?**
 The 95% Credible Interval (CI) represents the range in which 95% of the posterior samples (particles) fall at each time point. In our results, you may notice the CI expanding significantly (up to $10^{32}$) in the very recent or very ancient time periods. This indicates that the genomic data provides very little information about those specific time windows, causing the model to revert to its prior distribution with high uncertainty.
 
-![PHLASH Full Range](./experiments/phlash_analysis_full.png)
+| PHLASH Full Range | PHLASH Zoomed |
+|:---:|:---:|
+| ![PHLASH Full Range](./experiments/phlash_analysis_full.png) | ![PHLASH Zoomed](./experiments/phlash_analysis_zoomed.png) |
 
 ### Comparison of PHLASH and Ground Truth
 We also validated the Phlash results against the known ground truth from our simulation. After correcting for scaling (ensuring the window size of 100bp was properly accounted for during rescaling), we see that Phlash successfully captures the bottleneck and recovery events.
