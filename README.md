@@ -5,8 +5,7 @@ PSMC (Pairwise Sequentially Markovian Coalescent) is a method for inferring the 
 This repository contains the experiments done to replicate the results of the [PSMC paper](https://www.nature.com/articles/nature10231) using human genome data. The code and data used for the analysis are provided here for reproducibility and further exploration.
 
 *Course*: Big Data Biology, DS202
-*Contributor*: Anirudh Gupta, Savyasachi Deval
-*GitHub (Savyascahi)*: https://github.com/SavyasachiD
+*Contributor*: [Anirudh Gupta](https://github.com/AnirudhG07), [Savyasachi Deval](https://github.com/SavyasachiD)
 
 
 ## Datasets
