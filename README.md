@@ -33,7 +33,7 @@ curl -o datasets/NA18561.bam.bai https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phas
 You also need to download a reference genome for the human genome data.
 
 ```bash
-curl -o datasets/hs37d5.fa.gz LINK???????
+curl -o datasets/hs37d5.fa.gz ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz
 ```
 
 ### Simulated Data
@@ -67,7 +67,7 @@ cd ..
 
 ### Pipeline for PSMC
 
-Once we have the PSMC software built, we can run it on our data. Our main pipeline for running PSMC on the human genome data is [pipeline.py](scripts/pipeline_psmc.py). It processes the supported samples (`NA12878` and `NA18561`) and does the following:
+Once we have the PSMC software built, we can run it on our data. Our main pipeline for running PSMC on the human genome data is [pipeline.py](scripts/pipeline_psmc.py). It processes the supported samples (`NA12878`) and does the following:
 
 1. Checks whether a BAM index exists for each sample and creates it with `samtools index -@ 4` if needed.
 2. Converts each BAM file into a gzipped FASTQ-like file using `bcftools mpileup`, `bcftools call`, and `vcfutils.pl vcf2fq`.
@@ -81,10 +81,10 @@ You can run the pipeline for all supported samples or pass specific sample names
 
 ```bash
 uv sync # to install dependencies
-uv run scripts/pipeline_psmc.py NA18561.bam NA12878.bam
+uv run scripts/pipeline_psmc.py NA12878.bam
 ```
 
-This will run the pipeline for both `NA18561` and `NA12878` samples, generating the necessary files and the comparison plot.
+This will run the pipeline for`NA12878` samples, generating the necessary files and the comparison plot.
 
 ### Results
 
@@ -175,10 +175,39 @@ If this works, great! Else try our patch for GPU support:
 ```bash
 git apply ../phlash_gpu.patch
 export JAX_PLATFORM=cpu
-python3 run_phlash.py simulated_validation.psmc simulated_validation.psmcfa
+python3 scripts/run_phlash.py sim_data_<RANDOM_SEED>.psmcfa
 ```
 
 This worked for us, and we were able to get the PHLASH results for the simulated data, running on our GPU's.
+
+## Results
+
+We used NVIDIA GeForce RTX 3050 GPU and ran PHLASH on the simulated data to obtain several files including:
+
+1. `phlash_output.pkl`: This file contains the raw posterior samples from the PHLASH algorithm. Since Phlash is a Bayesian method using Stein Variational Gradient Descent (SVGD), the output is a set of "particles" that represent the approximated posterior distribution of the demographic history.
+
+2. We generate separate visualizations to better understand the model's output:
+   - **Full Range Plot**: Shows the complete vertical range of inferred population sizes, including the 95% Credible Interval (CI).
+   - **Zoomed Plot**: Focused on the median population size to highlight the specific bottleneck and expansion events.
+
+**What does the 95% CI mean in Phlash?**
+The 95% Credible Interval (CI) represents the range in which 95% of the posterior samples (particles) fall at each time point. In our results, you may notice the CI expanding significantly (up to $10^{32}$) in the very recent or very ancient time periods. This indicates that the genomic data provides very little information about those specific time windows, causing the model to revert to its prior distribution with high uncertainty.
+
+![PHLASH Full Range](./experiments/phlash_analysis_full.png)
+
+### Comparison of PHLASH and Ground Truth
+We also validated the Phlash results against the known ground truth from our simulation. After correcting for scaling (ensuring the window size of 100bp was properly accounted for during rescaling), we see that Phlash successfully captures the bottleneck and recovery events.
+
+![PHLASH vs Ground Truth](./experiments/phlash_vs_truth_expanded.png)
+
+### Comparison of PHLASH and PSMC
+We compare the PHLASH results with the PSMC results on the simulated data. 
+
+1. *Time Taken / iteration*: Time taken by PSMC per iteration is around 4 seconds, while for PHLASH it is around 1.1 seconds, which shows that PHLASH is significantly faster than PSMC, as expected.
+
+2. *Model Smoothness*: Unlike PSMC's discrete "staircase" output, Phlash produces much smoother demographic curves. This is because Phlash utilizes a Bayesian framework with a prior that penalizes sudden, sharp fluctuations in $N_e$. This regularization makes Phlash more robust to stochastic noise in the data but also results in "softer" transitions during sudden demographic events like bottlenecks, as it prioritizes a continuous and parsimonious history over localized jumps. 
+
+This behavior makes Phlash particularly suitable for real human genome data, where true demographic changes are often gradual and the signal is mixed with significant sequencing noise.
 
 # Acknowledgements
 

@@ -2,7 +2,6 @@
 name = "ds202-project"
 version = "1.0.0"
 description = "PSMC for human population along with PHLASH and SINGER. "
-]
 dependencies = [
     "blackjax<2.0.0,>=1.1.0",
     "intervaltree<4.0.0,>=3.1.0",
