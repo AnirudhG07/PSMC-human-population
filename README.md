@@ -161,25 +161,20 @@ To run the PHLASH from scratch, you can follow the instructions below:
 git clone https://github.com/jthlab/phlash.git
 cd phlash
 uv sync # to install dependencies
+
+# Apply the GPU patch
+git am phlash_gpu.patch
 ```
 
 2. Try to run the PHLASH on the simulated data:
 
 ```bash
 source .venv/bin/activate # source the virtual environment
-python3 run_phlash.py simulated_validation.psmc simulated_validation.psmcfa
-```
 
-If this works, great! Else try our patch for GPU support:
+# Run PHLASH on the data (psmcfa)
+python3 run_phlash.py datasets/sim_data_<RANDOM_SEED>.psmcfa --pkl phlash_output.pkl
 
-```bash
-# Apply the GPU patch
-git am phlash_gpu.patch
-
-# Generate both full and zoomed plots
-python3 scripts/plot_phlash.py --pkl phlash_output.pkl
-
-# Compare with ground truth
+# Generate plots and Compare with ground truth
 python3 scripts/plot_phlash.py --pkl phlash_output.pkl --truth datasets/sim_data_<SEED>_truth.json
 ```
 
