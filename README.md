@@ -221,6 +221,8 @@ We applied our patched Phlash implementation to the real human genome data for `
 
 ![NA12878 Zoomed](./experiments/NA12878_phlash.png)
 
+For the `NA12878` human genome (approx. 5.6 Gbp), Phlash completed **1000 iterations in about 36 minutes** on an NVIDIA RTX 3050 GPU giving 2.3 iterations per second. This is a significant improvement over PSMC, which would took between 3-4 hours for a full-scale human genome analysis with 25 iterations.
+
 # Acknowledgements
 
 We have used AI(like Gemini, ChatGPT) for assistance in writing code and debugging PHLASH issues. However all the code and analysis have been done by us, and we have not used AI for writing any part of the report or analysis.
