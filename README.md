@@ -149,34 +149,40 @@ This setup enables a direct comparison of SINGER with both:
 
 ## PHLASH
 
-Phlash is a GPU accelerated implementation algorithm for inferring population history from genomic data. We use [jthlab/phlash](https://github.com/jthlab/phlash) for running the PHLASH algorithm for simulate data.
+Phlash is a GPU accelerated implementation algorithm for inferring population history from genomic data. We use [jthlab/phlash](https://github.com/jthlab/phlash) for running the PHLASH algorithm for simulated and real genomic data.
 
-*NOTE*: We could not run PHLASH as it is on the GPU, so we changed the code to get it running on our GPU, we have provided the [phlash_gpu.patch](./phlash_gpu.patch) for the same.
+*NOTE*: We have customized the `phlash` source code to support our GPU setup and to handle regions with missing data in human genome sequences. Our changes are included in [phlash_gpu.patch](./phlash_gpu.patch).
 
-We run our PHLASH script on the simulated data generated as mentioned above using [run_phlash.py](./scripts/run_phlash.py).
+We use an **editable install** of Phlash in our environment. This means the project uses the local source code from the `phlash/` directory.
 
-To run the PHLASH from scratch, you can follow the instructions below:
+To setup the patched version:
 
 1. Setup Phlash:
 ```bash
+# Clone the repository (if not already present)
 git clone https://github.com/jthlab/phlash.git
 cd phlash
-uv sync # to install dependencies
 
-# Apply the GPU patch
-git am phlash_gpu.patch
+# Apply our latest patch
+git apply ../PSMC-human-population/phlash_gpu.patch
 ```
 
-2. Try to run the PHLASH on the simulated data:
-
+2. Link Phlash to the project (using `uv`):
 ```bash
-source .venv/bin/activate # source the virtual environment
+cd ../PSMC-human-population
+uv add --editable ../phlash
+```
 
-# Run PHLASH on the data (psmcfa)
-python3 run_phlash.py datasets/sim_data_<RANDOM_SEED>.psmcfa --pkl phlash_output.pkl
+3. Run Phlash on Human Genome data (NA12878):
+```bash
+# NA12878 Human data (approx 1.29e-8 mutation rate)
+uv run scripts/run_phlash.py NA12878.psmcfa NA12878.psmc 1.29e-8
+```
 
-# Generate plots and Compare with ground truth
-python3 scripts/plot_phlash.py --pkl phlash_output.pkl --truth datasets/sim_data_<SEED>_truth.json
+4. Visualize the results:
+```bash
+# Generate visualizations from the saved data
+uv run scripts/plot_phlash.py --pkl phlash_output.pkl
 ```
 
 ## Results
@@ -194,7 +200,7 @@ The 95% Credible Interval (CI) represents the range in which 95% of the posterio
 
 | PHLASH Full Range | PHLASH Zoomed |
 |:---:|:---:|
-| ![PHLASH Full Range](./experiments/phlash_analysis_complete.png) | ![PHLASH Zoomed](./experiments/phlash_analysis_zoomed.png) |
+| ![PHLASH Full Range](./experiments/phlash_analysis_full.png) | ![PHLASH Zoomed](./experiments/phlash_analysis_zoomed.png) |
 
 ### Comparison of PHLASH and Ground Truth
 We also validated the Phlash results against the known ground truth from our simulation. After correcting for scaling (ensuring the window size of 100bp was properly accounted for during rescaling), we see that Phlash successfully captures the bottleneck and recovery events.
@@ -209,6 +215,11 @@ We compare the PHLASH results with the PSMC results on the simulated data.
 2. *Model Smoothness*: Unlike PSMC's discrete "staircase" output, Phlash produces much smoother demographic curves. This is because Phlash utilizes a Bayesian framework with a prior that penalizes sudden, sharp fluctuations in $N_e$. This regularization makes Phlash more robust to stochastic noise in the data but also results in "softer" transitions during sudden demographic events like bottlenecks, as it prioritizes a continuous and parsimonious history over localized jumps. 
 
 This behavior makes Phlash particularly suitable for real human genome data, where true demographic changes are often gradual and the signal is mixed with significant sequencing noise.
+
+### Human Genome Results (Phlash)
+We applied our patched Phlash implementation to the real human genome data for `NA12878`. After filtering out regions with extensive missing data, we obtained a smooth demographic profile that reflects historical population changes.
+
+![NA12878 Zoomed](./experiments/NA12878_phlash.png)
 
 # Acknowledgements
 
